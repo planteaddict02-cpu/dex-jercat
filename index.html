@@ -1,911 +1,343 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowDownUp, Wallet, Info, TrendingUp, Zap, Search, X, Shield, Lock, AlertTriangle, CheckCircle, DollarSign, Award, Sparkles, ChevronDown, Settings, Clock, Percent, RefreshCw, BarChart3, TrendingDown, Star, Trophy, Target, Activity } from 'lucide-react';
-
-const JercatDEX = () => {
-  const [fromToken, setFromToken] = useState({ symbol: 'ETH', address: 'native', name: 'Ethereum', logo: '⟠', price: 3000 });
-  const [toToken, setToToken] = useState({ symbol: 'USDC', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', name: 'USD Coin', logo: '💵', price: 1 });
-  const [fromAmount, setFromAmount] = useState('');
-  const [toAmount, setToAmount] = useState('');
-  const [selectedChain, setSelectedChain] = useState('ethereum');
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [selectingToken, setSelectingToken] = useState('from');
-  const [approvalStatus, setApprovalStatus] = useState('none');
-  const [showJercatModal, setShowJercatModal] = useState(false);
-  const [jercatBalance, setJercatBalance] = useState('0');
-  const [jercatBuyAmount, setJercatBuyAmount] = useState('');
-  const [slippage, setSlippage] = useState('0.5');
-  const [showSettings, setShowSettings] = useState(false);
-  const [deadline, setDeadline] = useState('20');
-  const [priceImpact, setPriceImpact] = useState('0');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const JERCAT_TOKEN_ADDRESS = '0xYourJercatTokenAddress';
-  const JERCAT_PRICE = 0.15;
-  const PLATFORM_FEE = 0.001;
-
-  const chains = [
-    { id: 'ethereum', name: 'Ethereum', icon: '⟠', color: 'from-blue-500 to-cyan-500' },
-    { id: 'bsc', name: 'BSC', icon: '🔶', color: 'from-yellow-500 to-orange-500' },
-    { id: 'polygon', name: 'Polygon', icon: '🟣', color: 'from-purple-500 to-pink-500' },
-    { id: 'arbitrum', name: 'Arbitrum', icon: '🔵', color: 'from-blue-600 to-indigo-600' },
-    { id: 'optimism', name: 'Optimism', icon: '🔴', color: 'from-red-500 to-pink-500' },
-    { id: 'base', name: 'Base', icon: '🔷', color: 'from-blue-400 to-cyan-400' },
-    { id: 'avalanche', name: 'Avalanche', icon: '🔺', color: 'from-red-600 to-orange-600' }
-  ];
-
-  const tokens = {
-    ethereum: [
-      { symbol: 'ETH', address: 'native', name: 'Ethereum', logo: '⟠', price: 3000 },
-      { symbol: 'USDC', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', name: 'USD Coin', logo: '💵', price: 1 },
-      { symbol: 'USDT', address: '0xdac17f958d2ee523a2206206994597c13d831ec7', name: 'Tether', logo: '💲', price: 1 },
-      { symbol: 'WBTC', address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', name: 'Wrapped Bitcoin', logo: '₿', price: 45000 }
-    ],
-    bsc: [
-      { symbol: 'BNB', address: 'native', name: 'BNB', logo: '🔶', price: 300 },
-      { symbol: 'USDT', address: '0x55d398326f99059ff775485246999027b3197955', name: 'Tether', logo: '💲', price: 1 }
-    ],
-    polygon: [
-      { symbol: 'MATIC', address: 'native', name: 'Polygon', logo: '🟣', price: 0.8 },
-      { symbol: 'USDC', address: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', name: 'USD Coin', logo: '💵', price: 1 }
-    ],
-    arbitrum: [
-      { symbol: 'ETH', address: 'native', name: 'Ethereum', logo: '⟠', price: 3000 },
-      { symbol: 'USDC', address: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', name: 'USD Coin', logo: '💵', price: 1 }
-    ],
-    optimism: [
-      { symbol: 'ETH', address: 'native', name: 'Ethereum', logo: '⟠', price: 3000 },
-      { symbol: 'USDC', address: '0x7f5c764cbc14f9669b88837ca1490cca17c31607', name: 'USD Coin', logo: '💵', price: 1 }
-    ],
-    base: [
-      { symbol: 'ETH', address: 'native', name: 'Ethereum', logo: '⟠', price: 3000 },
-      { symbol: 'USDC', address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', name: 'USD Coin', logo: '💵', price: 1 }
-    ],
-    avalanche: [
-      { symbol: 'AVAX', address: 'native', name: 'Avalanche', logo: '🔺', price: 35 },
-      { symbol: 'USDC', address: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e', name: 'USD Coin', logo: '💵', price: 1 }
-    ]
-  };
-
-  useEffect(() => {
-    setFromToken(tokens[selectedChain][0]);
-    setToToken(tokens[selectedChain][1]);
-  }, [selectedChain]);
-
-  const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        setWalletAddress(accounts[0]);
-        setWalletConnected(true);
-        loadJercatBalance(accounts[0]);
-      } catch (error) {
-        alert('Connection error: ' + error.message);
-      }
-    } else {
-      window.open('https://metamask.io/download/', '_blank');
-    }
-  };
-
-  const loadJercatBalance = async (address) => {
-    setJercatBalance((Math.random() * 1000).toFixed(2));
-  };
-
-  const buyJercat = async () => {
-    if (!walletConnected) {
-      alert('Please connect your wallet first');
-      return;
-    }
-    if (!jercatBuyAmount || parseFloat(jercatBuyAmount) <= 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    const tokensToReceive = (parseFloat(jercatBuyAmount) / JERCAT_PRICE).toFixed(2);
-    const costInETH = (parseFloat(jercatBuyAmount) / 3000).toFixed(6);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      alert(`✅ JERCAT Purchase Successful!\n\nPaid: ${costInETH} ETH ($${jercatBuyAmount})\nReceived: ${tokensToReceive} JERCAT 🐱\n\nYour JERCAT balance: ${(parseFloat(jercatBalance) + parseFloat(tokensToReceive)).toFixed(2)} JERCAT`);
-      
-      setJercatBalance((parseFloat(jercatBalance) + parseFloat(tokensToReceive)).toFixed(2));
-      setJercatBuyAmount('');
-      
-      setTimeout(() => {
-        if (confirm('Would you like to add JERCAT token to MetaMask?')) {
-          addJercatToMetaMask();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JERCAT DEX - Professional Trading Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-      }, 1000);
-    } catch (error) {
-      alert('Purchase failed: ' + error.message);
-    }
-  };
-
-  const addJercatToMetaMask = async () => {
-    if (typeof window.ethereum === 'undefined') {
-      alert('MetaMask is not installed');
-      return;
-    }
-
-    try {
-      const wasAdded = await window.ethereum.request({
-        method: 'wallet_watchAsset',
-        params: {
-          type: 'ERC20',
-          options: {
-            address: JERCAT_TOKEN_ADDRESS,
-            symbol: 'JERCAT',
-            decimals: 18,
-            image: 'https://your-domain.com/jercat-logo.png',
-          },
-        },
-      });
-
-      if (wasAdded) {
-        alert('✅ JERCAT Token added to MetaMask!');
-      }
-    } catch (error) {
-      alert('Failed to add token to MetaMask: ' + error.message);
-    }
-  };
-
-  const checkAllowance = async () => {
-    if (!walletConnected || fromToken.address === 'native' || !fromAmount) {
-      setApprovalStatus('none');
-      return;
-    }
-    setApprovalStatus('checking');
-    setTimeout(() => {
-      const approved = Math.random() > 0.5;
-      setApprovalStatus(approved ? 'approved' : 'needed');
-    }, 1000);
-  };
-
-  const approveToken = async () => {
-    setApprovalStatus('approving');
-    setTimeout(() => {
-      setApprovalStatus('approved');
-      alert(`✅ Token Approved!\n\n${fromToken.symbol} is now approved for trading.`);
-    }, 2000);
-  };
-
-  useEffect(() => {
-    if (walletConnected && fromAmount && fromToken.address !== 'native') {
-      checkAllowance();
-    }
-  }, [fromAmount, fromToken, walletConnected]);
-
-  const calculateOutput = (input) => {
-    if (!input || isNaN(input)) return '';
-    const rate = fromToken.price / toToken.price;
-    const feeMultiplier = 1 - PLATFORM_FEE;
-    const output = parseFloat(input) * rate * feeMultiplier;
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
     
-    const tradeSize = parseFloat(input) * fromToken.price;
-    let impact = 0;
-    if (tradeSize > 100000) impact = 2.5;
-    else if (tradeSize > 50000) impact = 1.5;
-    else if (tradeSize > 10000) impact = 0.8;
-    else if (tradeSize > 1000) impact = 0.3;
-    else impact = 0.1;
-    
-    setPriceImpact(impact.toFixed(2));
-    
-    return (output * (1 - impact / 100)).toFixed(6);
-  };
-
-  const handleSwap = async () => {
-    if (!walletConnected) {
-      alert('Please connect your wallet first');
-      return;
-    }
-    if (!fromAmount || parseFloat(fromAmount) <= 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-    if (fromToken.address !== 'native' && approvalStatus !== 'approved') {
-      alert('⚠️ Please approve the token first');
-      return;
-    }
-    alert(`✅ Swap Executed!\n\n${fromAmount} ${fromToken.symbol} → ${toAmount} ${toToken.symbol}`);
-    setFromAmount('');
-    setToAmount('');
-    setApprovalStatus('none');
-  };
-
-  const switchTokens = () => {
-    const temp = fromToken;
-    setFromToken(toToken);
-    setToToken(temp);
-    setFromAmount(toAmount);
-    setToAmount(fromAmount);
-  };
-
-  useEffect(() => {
-    if (fromAmount) {
-      setToAmount(calculateOutput(fromAmount));
-    }
-  }, [fromAmount, fromToken, toToken]);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Premium Header Bar */}
-      <div className="border-b border-slate-700/50 bg-black/40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/50">
-                  J
+    <!-- Premium Header Bar -->
+    <div class="border-b border-slate-700/50 bg-black/40 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/50">
+                            J
+                        </div>
+                        <span class="text-white font-black text-xl tracking-tight">JERCAT DEX</span>
+                    </div>
+                    <div class="hidden md:flex items-center gap-6">
+                        <div class="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                            <span>$2.8B Volume 24h</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-blue-400 text-sm font-semibold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <span>100x Cheaper Fees</span>
+                        </div>
+                    </div>
                 </div>
-                <span className="text-white font-black text-xl tracking-tight">JERCAT DEX</span>
-              </div>
-              <div className="hidden md:flex items-center gap-6">
-                <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                  <Activity size={16} />
-                  <span>$2.8B Volume 24h</span>
+                
+                <button onclick="connectWallet()" id="connectBtn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg transition-all">
+                    Connect Wallet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-12">
+        <!-- Hero Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded">+156%</span>
                 </div>
-                <div className="flex items-center gap-2 text-blue-400 text-sm font-semibold">
-                  <Trophy size={16} />
-                  <span>100x Cheaper Fees</span>
-                </div>
-              </div>
+                <div class="text-3xl font-black text-white mb-1">$2.8B</div>
+                <div class="text-sm text-slate-400 font-medium">24h Volume</div>
             </div>
             
-            {!walletConnected ? (
-              <button
-                onClick={connectWallet}
-                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg transition-all"
-              >
-                Connect Wallet
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                    <span className="text-white font-mono text-sm">
-                      {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Hero Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="text-emerald-400" size={20} />
-              </div>
-              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded">+156%</span>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">$2.8B</div>
-            <div className="text-sm text-slate-400 font-medium">24h Volume</div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <Zap className="text-blue-400" size={20} />
-              </div>
-              <span className="text-xs font-bold text-blue-400 bg-blue-500/20 px-2 py-1 rounded">LIVE</span>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">0.1%</div>
-            <div className="text-sm text-slate-400 font-medium">Platform Fee</div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Target className="text-purple-400" size={20} />
-              </div>
-              <span className="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-1 rounded">7 CHAINS</span>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">350K+</div>
-            <div className="text-sm text-slate-400 font-medium">Active Traders</div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-amber-900/30 to-slate-900 border border-amber-500/30 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                <Award className="text-amber-400" size={20} />
-              </div>
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/20 px-2 py-1 rounded">HOT</span>
-            </div>
-            <div className="text-3xl font-black text-white mb-1">🐱 $0.15</div>
-            <div className="text-sm text-slate-400 font-medium">JERCAT Price</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Trading Panel */}
-          <div className="lg:col-span-2">
-            {/* Chain Selector */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold text-lg">Select Network</h3>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                  <span>All Networks Online</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                {chains.map(chain => (
-                  <button
-                    key={chain.id}
-                    onClick={() => setSelectedChain(chain.id)}
-                    className={`p-4 rounded-xl transition-all border ${
-                      selectedChain === chain.id
-                        ? 'bg-gradient-to-br from-slate-700 to-slate-800 border-amber-500 shadow-lg shadow-amber-500/20'
-                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="text-3xl mb-2">{chain.icon}</div>
-                    <div className={`text-xs font-bold ${selectedChain === chain.id ? 'text-white' : 'text-slate-400'}`}>
-                      {chain.name}
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
                     </div>
-                  </button>
-                ))}
-              </div>
+                    <span class="text-xs font-bold text-blue-400 bg-blue-500/20 px-2 py-1 rounded">LIVE</span>
+                </div>
+                <div class="text-3xl font-black text-white mb-1">0.1%</div>
+                <div class="text-sm text-slate-400 font-medium">Platform Fee</div>
             </div>
+            
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-bold text-purple-400 bg-purple-500/20 px-2 py-1 rounded">7 CHAINS</span>
+                </div>
+                <div class="text-3xl font-black text-white mb-1">350K+</div>
+                <div class="text-sm text-slate-400 font-medium">Active Traders</div>
+            </div>
+            
+            <div class="bg-gradient-to-br from-amber-900/30 to-slate-900 border border-amber-500/30 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-bold text-amber-400 bg-amber-500/20 px-2 py-1 rounded">HOT</span>
+                </div>
+                <div class="text-3xl font-black text-white mb-1">🐱 $0.15</div>
+                <div class="text-sm text-slate-400 font-medium">JERCAT Price</div>
+            </div>
+        </div>
 
-            {/* Swap Card */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-black text-white">Swap Tokens</h2>
-                <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="p-2 hover:bg-slate-700 rounded-lg transition-all"
-                >
-                  <Settings className="text-slate-400 hover:text-white" size={20} />
-                </button>
-              </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Trading Panel -->
+            <div class="lg:col-span-2">
+                <!-- Chain Selector -->
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-white font-bold text-lg">Select Network</h3>
+                        <div class="flex items-center gap-2 text-xs text-slate-400">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <span>All Networks Online</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3" id="chainSelector">
+                        <!-- Chains will be inserted here -->
+                    </div>
+                </div>
 
-              {showSettings && (
-                <div className="mb-6 bg-slate-900 rounded-xl p-5 border border-slate-700 space-y-4">
-                  <div>
-                    <label className="text-sm text-slate-400 mb-2 flex items-center gap-2 font-medium">
-                      <Percent size={14} />
-                      Slippage Tolerance
-                    </label>
-                    <div className="flex gap-2">
-                      {['0.1', '0.5', '1.0'].map((value) => (
-                        <button
-                          key={value}
-                          onClick={() => setSlippage(value)}
-                          className={`flex-1 py-2.5 rounded-lg font-semibold transition-all text-sm ${
-                            slippage === value
-                              ? 'bg-amber-500 text-black'
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700'
-                          }`}
-                        >
-                          {value}%
+                <!-- Swap Card -->
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-black text-white">Swap Tokens</h2>
+                        <button onclick="toggleSettings()" class="p-2 hover:bg-slate-700 rounded-lg transition-all">
+                            <svg class="w-5 h-5 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
                         </button>
-                      ))}
-                      <input
-                        type="number"
-                        value={slippage}
-                        onChange={(e) => setSlippage(e.target.value)}
-                        className="w-20 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg outline-none text-sm"
-                        placeholder="Custom"
-                      />
                     </div>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm text-slate-400 mb-2 flex items-center gap-2 font-medium">
-                      <Clock size={14} />
-                      Transaction Deadline
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={deadline}
-                        onChange={(e) => setDeadline(e.target.value)}
-                        className="flex-1 bg-slate-800 border border-slate-700 text-white px-4 py-2.5 rounded-lg outline-none text-sm"
-                      />
-                      <span className="text-slate-400 text-sm font-medium">minutes</span>
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {walletConnected && jercatBalance && parseFloat(jercatBalance) > 0 && (
-                <div className="mb-6 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                      <Award className="text-emerald-400" size={20} />
+                    <!-- Settings Panel -->
+                    <div id="settingsPanel" class="hidden mb-6 bg-slate-900 rounded-xl p-5 border border-slate-700 space-y-4">
+                        <div>
+                            <label class="text-sm text-slate-400 mb-2 flex items-center gap-2 font-medium">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                </svg>
+                                Slippage Tolerance
+                            </label>
+                            <div class="flex gap-2">
+                                <button onclick="setSlippage('0.1')" class="slippage-btn flex-1 py-2.5 rounded-lg font-semibold transition-all text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700">0.1%</button>
+                                <button onclick="setSlippage('0.5')" class="slippage-btn flex-1 py-2.5 rounded-lg font-semibold transition-all text-sm bg-amber-500 text-black">0.5%</button>
+                                <button onclick="setSlippage('1.0')" class="slippage-btn flex-1 py-2.5 rounded-lg font-semibold transition-all text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700">1.0%</button>
+                                <input type="number" id="customSlippage" value="0.5" class="w-20 bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded-lg outline-none text-sm" placeholder="Custom">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-sm text-slate-400 mb-2 flex items-center gap-2 font-medium">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Transaction Deadline
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="deadline" value="20" class="flex-1 bg-slate-800 border border-slate-700 text-white px-4 py-2.5 rounded-lg outline-none text-sm">
+                                <span class="text-slate-400 text-sm font-medium">minutes</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="text-emerald-400 font-bold text-sm">VIP Trading Active</div>
-                      <div className="text-slate-400 text-xs">Zero gas fees • 50% trading discount</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white font-bold">🐱 {jercatBalance}</div>
-                      <div className="text-xs text-slate-400">JERCAT</div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              <div className="mb-3">
-                <label className="text-xs text-slate-400 mb-2 block font-semibold uppercase tracking-wide">You Pay</label>
-                <div className="bg-slate-900 rounded-xl p-5 border border-slate-700 hover:border-slate-600 transition-all">
-                  <div className="flex justify-between items-center mb-3">
-                    <input
-                      type="number"
-                      value={fromAmount}
-                      onChange={(e) => setFromAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 bg-transparent text-white text-3xl outline-none font-bold placeholder-slate-600"
-                    />
-                    <button
-                      onClick={() => { setSelectingToken('from'); setShowSearchModal(true); }}
-                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-lg border border-slate-700 transition-all"
-                    >
-                      <span className="text-2xl">{fromToken.logo}</span>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">{fromToken.symbol}</div>
-                      </div>
-                      <ChevronDown className="text-slate-400" size={16} />
+                    <!-- VIP Status -->
+                    <div id="vipStatus" class="hidden mb-6 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-emerald-400 font-bold text-sm">VIP Trading Active</div>
+                                <div class="text-slate-400 text-xs">Zero gas fees • 50% trading discount</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-white font-bold" id="vipBalance">🐱 0</div>
+                                <div class="text-xs text-slate-400">JERCAT</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- From Token -->
+                    <div class="mb-3">
+                        <label class="text-xs text-slate-400 mb-2 block font-semibold uppercase tracking-wide">You Pay</label>
+                        <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 hover:border-slate-600 transition-all">
+                            <div class="flex justify-between items-center mb-3">
+                                <input type="number" id="fromAmount" placeholder="0.00" class="flex-1 bg-transparent text-white text-3xl outline-none font-bold placeholder-slate-600">
+                                <button onclick="openTokenSelector('from')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-lg border border-slate-700 transition-all">
+                                    <span class="text-2xl" id="fromTokenLogo">⟠</span>
+                                    <div class="text-left">
+                                        <div class="text-white font-bold text-sm" id="fromTokenSymbol">ETH</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="text-sm text-slate-400 font-medium" id="fromAmountUSD">$0.00 USD</div>
+                        </div>
+                    </div>
+
+                    <!-- Switch Button -->
+                    <div class="flex justify-center -my-2 relative z-10">
+                        <button onclick="switchTokens()" class="bg-gradient-to-br from-amber-500 to-orange-500 p-2.5 rounded-xl hover:scale-110 border-4 border-slate-800 transition-all shadow-lg">
+                            <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- To Token -->
+                    <div class="mb-6">
+                        <label class="text-xs text-slate-400 mb-2 block font-semibold uppercase tracking-wide">You Receive</label>
+                        <div class="bg-slate-900 rounded-xl p-5 border border-slate-700">
+                            <div class="flex justify-between items-center mb-3">
+                                <input type="number" id="toAmount" readonly placeholder="0.00" class="flex-1 bg-transparent text-white text-3xl outline-none font-bold">
+                                <button onclick="openTokenSelector('to')" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-lg border border-slate-700 transition-all">
+                                    <span class="text-2xl" id="toTokenLogo">💵</span>
+                                    <div class="text-left">
+                                        <div class="text-white font-bold text-sm" id="toTokenSymbol">USDC</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="text-sm text-slate-400 font-medium" id="toAmountUSD">$0.00 USD</div>
+                        </div>
+                    </div>
+
+                    <!-- Approve Button -->
+                    <button id="approveBtn" class="hidden w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-4 rounded-xl font-bold mb-3 transition-all">
+                        Approve Token
                     </button>
-                  </div>
-                  {fromAmount && (
-                    <div className="text-sm text-slate-400 font-medium">
-                      ≈ ${(parseFloat(fromAmount) * fromToken.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              <div className="flex justify-center -my-2 relative z-10">
-                <button
-                  onClick={switchTokens}
-                  className="bg-gradient-to-br from-amber-500 to-orange-500 p-2.5 rounded-xl hover:scale-110 border-4 border-slate-800 transition-all shadow-lg"
-                >
-                  <ArrowDownUp className="text-black" size={20} />
-                </button>
-              </div>
-
-              <div className="mb-6">
-                <label className="text-xs text-slate-400 mb-2 block font-semibold uppercase tracking-wide">You Receive</label>
-                <div className="bg-slate-900 rounded-xl p-5 border border-slate-700">
-                  <div className="flex justify-between items-center mb-3">
-                    <input
-                      type="number"
-                      value={toAmount}
-                      readOnly
-                      placeholder="0.00"
-                      className="flex-1 bg-transparent text-white text-3xl outline-none font-bold"
-                    />
-                    <button
-                      onClick={() => { setSelectingToken('to'); setShowSearchModal(true); }}
-                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-lg border border-slate-700 transition-all"
-                    >
-                      <span className="text-2xl">{toToken.logo}</span>
-                      <div className="text-left">
-                        <div className="text-white font-bold text-sm">{toToken.symbol}</div>
-                      </div>
-                      <ChevronDown className="text-slate-400" size={16} />
+                    <!-- Swap Button -->
+                    <button onclick="handleSwap()" id="swapBtn" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black py-4 rounded-xl font-black text-lg transition-all shadow-lg">
+                        Enter Amount
                     </button>
-                  </div>
-                  {toAmount && (
-                    <div className="text-sm text-slate-400 font-medium">
-                      ≈ ${(parseFloat(toAmount) * toToken.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD
+
+                    <!-- Trade Details -->
+                    <div id="tradeDetails" class="hidden mt-5">
+                        <button onclick="toggleAdvanced()" class="w-full text-sm text-slate-400 hover:text-white flex items-center justify-between py-2 font-medium">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                Trade Details
+                            </span>
+                            <svg class="w-3.5 h-3.5 transform transition-transform" id="advancedChevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <div id="advancedDetails" class="hidden bg-slate-900 rounded-xl p-4 space-y-3 text-sm border border-slate-700">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 font-medium">Exchange Rate</span>
+                                <span class="text-white font-semibold" id="exchangeRate">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 font-medium flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                                    </svg>
+                                    Price Impact
+                                </span>
+                                <span class="font-bold text-emerald-400" id="priceImpact">0.10%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 font-medium">Platform Fee (0.1%)</span>
+                                <span class="text-white font-semibold" id="platformFee">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 font-medium">Min. Received</span>
+                                <span class="text-white font-semibold" id="minReceived">-</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-3 border-t border-slate-700">
+                                <span class="text-slate-400 font-medium">Network Cost</span>
+                                <span class="font-semibold text-white" id="networkCost">~$0.50</span>
+                            </div>
+                        </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {fromToken.address !== 'native' && walletConnected && fromAmount && approvalStatus !== 'approved' && (
-                <button
-                  onClick={approveToken}
-                  disabled={approvalStatus === 'approving'}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-4 rounded-xl font-bold mb-3 transition-all disabled:opacity-50"
-                >
-                  {approvalStatus === 'approving' ? 'Approving...' : `Approve ${fromToken.symbol}`}
-                </button>
-              )}
-
-              <button
-                onClick={handleSwap}
-                disabled={!walletConnected || !fromAmount || (fromToken.address !== 'native' && approvalStatus !== 'approved')}
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black py-4 rounded-xl font-black text-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
-              >
-                {!walletConnected ? 'Connect Wallet' : !fromAmount ? 'Enter Amount' : fromToken.address !== 'native' && approvalStatus !== 'approved' ? 'Approve First' : `Swap ${fromToken.symbol} → ${toToken.symbol}`}
-              </button>
-
-              {fromAmount && toAmount && (
-                <div className="mt-5">
-                  <button
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="w-full text-sm text-slate-400 hover:text-white flex items-center justify-between py-2 font-medium"
-                  >
-                    <span className="flex items-center gap-2">
-                      <BarChart3 size={14} />
-                      Trade Details
-                    </span>
-                    <ChevronDown size={14} className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showAdvanced && (
-                    <div className="bg-slate-900 rounded-xl p-4 space-y-3 text-sm border border-slate-700">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium">Exchange Rate</span>
-                        <span className="text-white font-semibold">
-                          1 {fromToken.symbol} = {(fromToken.price / toToken.price).toFixed(4)} {toToken.symbol}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium flex items-center gap-1">
-                          <TrendingDown size={14} />
-                          Price Impact
-                        </span>
-                        <span className={`font-bold ${parseFloat(priceImpact) > 1 ? 'text-orange-400' : 'text-emerald-400'}`}>
-                          {priceImpact}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium">Platform Fee (0.1%)</span>
-                        <span className="text-white font-semibold">
-                          {(parseFloat(fromAmount) * PLATFORM_FEE).toFixed(6)} {fromToken.symbol}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium">Min. Received</span>
-                        <span className="text-white font-semibold">
-                          {(parseFloat(toAmount) * (1 - parseFloat(slippage) / 100)).toFixed(6)} {toToken.symbol}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pt-3 border-t border-slate-700">
-                        <span className="text-slate-400 font-medium">Network Cost</span>
-                        <span className="font-semibold">
-                          {jercatBalance && parseFloat(jercatBalance) > 0 ? (
-                            <span className="text-emerald-400">FREE (VIP)</span>
-                          ) : (
-                            <span className="text-white">~$0.50</span>
-                          )}
-                        </span>
-                      </div>
+                    <!-- Security Badges -->
+                    <div class="mt-6 grid grid-cols-4 gap-3 text-xs">
+                        <div class="flex flex-col items-center gap-1 text-center">
+                            <svg class="w-4.5 h-4.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            <span class="text-slate-400 font-medium">CertiK Audited</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1 text-center">
+                            <svg class="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                            <span class="text-slate-400 font-medium">Non-Custodial</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1 text-center">
+                            <svg class="w-4.5 h-4.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <span class="text-slate-400 font-medium">100x Cheaper</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-1 text-center">
+                            <svg class="w-4.5 h-4.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-slate-400 font-medium">MEV Protected</span>
+                        </div>
                     </div>
-                  )}
                 </div>
-              )}
-
-              <div className="mt-6 grid grid-cols-4 gap-3 text-xs">
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <Shield className="text-emerald-400" size={18} />
-                  <span className="text-slate-400 font-medium">CertiK Audited</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <Lock className="text-blue-400" size={18} />
-                  <span className="text-slate-400 font-medium">Non-Custodial</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <Zap className="text-amber-400" size={18} />
-                  <span className="text-slate-400 font-medium">100x Cheaper</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <CheckCircle className="text-purple-400" size={18} />
-                  <span className="text-slate-400 font-medium">MEV Protected</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar - JERCAT Info */}
-          <div className="space-y-6">
-            {/* JERCAT Token Card */}
-            <div className="bg-gradient-to-br from-amber-900/30 via-slate-800 to-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center text-3xl shadow-lg">
-                  🐱
-                </div>
-                <div>
-                  <h3 className="text-white font-black text-xl">JERCAT Token</h3>
-                  <p className="text-amber-400 text-sm font-semibold">Your Gateway to Zero Fees</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                  <div className="text-xs text-slate-400 mb-1 font-medium">Price</div>
-                  <div className="text-lg font-black text-white">${JERCAT_PRICE}</div>
-                </div>
-                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                  <div className="text-xs text-slate-400 mb-1 font-medium">24h Change</div>
-                  <div className="text-lg font-black text-emerald-400">+25%</div>
-                </div>
-                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                  <div className="text-xs text-slate-400 mb-1 font-medium">Market Cap</div>
-                  <div className="text-lg font-black text-white">$15M</div>
-                </div>
-                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                  <div className="text-xs text-slate-400 mb-1 font-medium">Holders</div>
-                  <div className="text-lg font-black text-white">45K+</div>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckCircle className="text-emerald-400" size={14} />
-                  </div>
-                  <div>
-                    <div className="text-white font-bold text-sm">Zero Gas Fees</div>
-                    <div className="text-slate-400 text-xs">Pay gas with JERCAT instead of ETH</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckCircle className="text-blue-400" size={14} />
-                  </div>
-                  <div>
-                    <div className="text-white font-bold text-sm">50% Fee Discount</div>
-                    <div className="text-slate-400 text-xs">Reduce trading fees by half</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckCircle className="text-purple-400" size={14} />
-                  </div>
-                  <div>
-                    <div className="text-white font-bold text-sm">30% Revenue Share</div>
-                    <div className="text-slate-400 text-xs">Earn from platform trading volume</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckCircle className="text-amber-400" size={14} />
-                  </div>
-                  <div>
-                    <div className="text-white font-bold text-sm">VIP Access</div>
-                    <div className="text-slate-400 text-xs">Priority support & early features</div>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowJercatModal(true)}
-                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black py-3.5 rounded-xl font-black transition-all shadow-lg"
-              >
-                Buy JERCAT Now
-              </button>
             </div>
 
-            {/* Security Card */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
-              <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                <Shield className="text-emerald-400" size={20} />
-                Security First
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                  <span className="text-slate-300">Audited by CertiK</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span className="text-slate-300">Non-custodial protocol</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <span className="text-slate-300">MEV protection enabled</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
-                  <span className="text-slate-300">$50M+ secured</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Why JERCAT DEX */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
-              <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                <Trophy className="text-amber-400" size={20} />
-                Why Choose Us
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-slate-300 text-sm font-medium">Fees</span>
-                    <span className="text-emerald-400 font-bold text-sm">100x Lower</span>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full" style={{width: '95%'}}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-slate-300 text-sm font-medium">Speed</span>
-                    <span className="text-blue-400 font-bold text-sm">Instant</span>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full" style={{width: '98%'}}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-slate-300 text-sm font-medium">Security</span>
-                    <span className="text-purple-400 font-bold text-sm">Maximum</span>
-                  </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-400 h-2 rounded-full" style={{width: '100%'}}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Token Search Modal */}
-        {showSearchModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl max-w-md w-full border border-slate-700 shadow-2xl">
-              <div className="p-6 border-b border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-white font-black text-xl">Select Token</h3>
-                  <button
-                    onClick={() => setShowSearchModal(false)}
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 max-h-96 overflow-y-auto">
-                {tokens[selectedChain].map((token, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (selectingToken === 'from') setFromToken(token);
-                      else setToToken(token);
-                      setShowSearchModal(false);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-slate-800 rounded-xl mb-2 border border-transparent hover:border-slate-700 transition-all"
-                  >
-                    <span className="text-3xl">{token.logo}</span>
-                    <div className="flex-1 text-left">
-                      <div className="text-white font-bold text-base">{token.symbol}</div>
-                      <div className="text-sm text-slate-400">{token.name}</div>
+            <!-- Sidebar - JERCAT Info -->
+            <div class="space-y-6">
+                <!-- JERCAT Token Card -->
+                <div class="bg-gradient-to-br from-amber-900/30 via-slate-800 to-slate-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center text-3xl shadow-lg">
+                            🐱
+                        </div>
+                        <div>
+                            <h3 class="text-white font-black text-xl">JERCAT Token</h3>
+                            <p class="text-amber-400 text-sm font-semibold">Your Gateway to Zero Fees</p>
+                        </div>
                     </div>
-                    <div className="text-white font-bold">${token.price.toLocaleString()}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* JERCAT Buy Modal */}
-        {showJercatModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-amber-900/20 rounded-2xl max-w-lg w-full border-2 border-amber-500/50 shadow-2xl">
-              <div className="p-6 border-b border-amber-500/30 bg-gradient-to-r from-amber-900/20 to-orange-900/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-3xl shadow-lg">
-                      🐱
-                    </div>
-                    <div>
-                      <h3 className="text-white font-black text-2xl">Buy JERCAT</h3>
-                      <p className="text-amber-400 text-sm font-semibold">Unlock VIP Benefits</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowJercatModal(false)}
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {walletConnected && (
-                  <div className="mb-6 bg-slate-900/50 rounded-xl p-4 border border-slate-700">
-                    <div className="text-sm text-slate-400 mb-1 font-medium">Your Balance</div>
-                    <div className="text-3xl font-black text-amber-400">🐱 {jercatBalance} JERCAT</div>
-                    <div className="text-sm text-slate-400 mt-1">≈ ${(parseFloat(jercatBalance) * JERCAT_PRICE).toFixed(2)} USD</div>
-                  </div>
-                )}
-
-                <div className="mb-6">
-                  <label className="text-sm text-slate-400 mb-2 block font-semibold uppercase tracking-wide">Amount in USD</label>
-                  <div className="bg-slate-900 rounded-xl p-5 border-2 border-amber-500/30 hover:border-amber-500/50 transition-all">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">💵</span>
-                      <input
-                        type="number"
-                        value={jercatBuyAmount}
-                        onChange={(e) => setJercatBuyAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="flex-1 bg-transparent text-white text-2xl outline-none font-bold placeholder-slate-600"
-                      />
-                      <span className="text-slate-400 font-semibold">USD</span>
-                    </div>
-                  </div>
-                  {jercatBuyAmount && (
-                    <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                      <div className="text-emerald-400 font-bold mb-1">
-                        You will receive: <span className="text-2xl">🐱 {(parseFloat(jercatBuyAmount) / JERCAT_PRICE).toFixed(2)} JERCAT</span>
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Cost: {(parseFloat(jercatBuyAmount) / 3000).toFixed(6)} ETH
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-4 gap-2 mb-6">
-                  {[10, 50, 100, 500].map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setJercatBuyAmount(amount.toString())}
-                      className="bg-slate-800 hover:bg-amber-600 hover:text-black text-white py-3 rounded-lg font-bold transition-all border border-slate-700 hover:border-amber-500"
-                    >
-                      ${amount}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={buyJercat}
-                  disabled={!walletConnected || !jercatBuyAmount || parseFloat(jercatBuyAmount) <= 0}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black py-4 rounded-xl font-black text-xl transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Buy JERCAT Now
-                </button>
-
-                {!walletConnected && (
-                  <div className="mt-4 text-center text-sm text-slate-400">
-                    <Info size={14} className="inline mr-1" />
-                    Connect your wallet to purchase JERCAT
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-slate-800 bg-black/40 mt-20">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="text-center">
-            <div className="text-slate-500 text-sm mb-4 font-medium">
-              © 2025 JERCAT DEX • The Professional Trading Platform
-            </div>
-            <div className="flex items-center justify-center gap-6 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <Shield size={14} />
-                <span>CertiK Audited</span>
-              </div>
-              <span>•</span>
-              <div className="flex items-center gap-2">
-                <Lock size={14} />
-                <span>Non-Custodial</span>
-              </div>
-              <span>•</span>
-              <div className="flex items-center gap-2">
-                <Zap size={14} />
-                <span>0.1% Fee</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default JercatDEX;
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                            <div class="text-xs text-slate-400 mb-1 font-medium">Price</div>
+                            <div class="text-lg font-black text-white">$0.15</div>
+                        </div>
+                        <div class="bg-slate-900/50
