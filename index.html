@@ -22,6 +22,16 @@
         .animate-slide-in {
             animation: slideIn 0.3s ease-out;
         }
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            animation: confetti 3s ease-out forwards;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
@@ -52,6 +62,14 @@
             position: relative;
             height: 300px;
         }
+        .reward-badge {
+            animation: bounceIn 0.5s ease-out;
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
@@ -81,6 +99,10 @@
                         <button onclick="switchTab('staking')" id="tab-staking" class="px-3 py-2 font-bold text-sm text-slate-400 hover:text-white transition-all">
                             Staking
                         </button>
+                        <button onclick="switchTab('rewards')" id="tab-rewards" class="px-3 py-2 font-bold text-sm text-slate-400 hover:text-white transition-all relative">
+                            Rewards
+                            <span id="rewardsNotif" class="hidden absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                        </button>
                     </div>
                 </div>
                 
@@ -103,7 +125,7 @@
 
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Stats Bar -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
             <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4">
                 <div class="text-xs text-slate-400 mb-1 font-medium">JERCAT Price</div>
                 <div class="text-xl font-black text-white">$<span id="headerPrice">0.00</span></div>
@@ -124,6 +146,10 @@
             <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-4">
                 <div class="text-xs text-slate-400 mb-1 font-medium">Gas Price</div>
                 <div class="text-xl font-black text-blue-400" id="headerGas">-- Gwei</div>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-900/30 to-slate-900 border border-emerald-500/30 rounded-xl p-4">
+                <div class="text-xs text-emerald-400 mb-1 font-medium">Total Rewards</div>
+                <div class="text-xl font-black text-white"><span id="totalRewards">0</span> 🐱</div>
             </div>
         </div>
 
@@ -155,6 +181,19 @@
                                 <div class="text-white font-bold text-sm">Arbitrum</div>
                                 <div class="text-xs text-slate-400">Soon</div>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Rewards Banner -->
+                    <div class="bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-2xl p-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center text-2xl">
+                                🎁
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-emerald-400 font-bold text-lg mb-1">Gagnez des JERCAT à chaque swap !</div>
+                                <div class="text-slate-300 text-sm">Récompense automatique : <span class="text-emerald-400 font-bold">0.1% du montant swappé</span></div>
+                            </div>
                         </div>
                     </div>
 
@@ -267,8 +306,12 @@
                                 <span class="text-emerald-400 font-bold" id="priceImpact">< 0.01%</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-slate-400">Fee (0.25%)</span>
-                                <span class="text-white font-semibold" id="platformFee">-</span>
+                                <span class="text-slate-400">Platform Fee (0.01% BNB)</span>
+                                <span class="text-amber-400 font-semibold" id="platformFee">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-emerald-400">🎁 Reward (0.1%)</span>
+                                <span class="text-emerald-400 font-bold" id="rewardAmount">-</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-slate-400">Min. Received</span>
@@ -545,6 +588,112 @@
                 </div>
             </div>
         </div>
+
+        <!-- REWARDS TAB -->
+        <div id="content-rewards" class="content-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Total Rewards Card -->
+                    <div class="bg-gradient-to-br from-emerald-900/30 via-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl p-8">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <div class="text-sm text-emerald-400 mb-2 font-semibold">Total Rewards Earned</div>
+                                <div class="text-5xl font-black text-white mb-2"><span id="totalRewardsDisplay">0</span> 🐱</div>
+                                <div class="text-xl text-slate-400 font-bold">≈ $<span id="totalRewardsUSD">0.00</span> USD</div>
+                            </div>
+                            <div class="w-16 h-16 bg-emerald-500/20 rounded-xl flex items-center justify-center text-3xl">
+                                🎁
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-slate-900/50 rounded-lg p-3">
+                                <div class="text-xs text-slate-400 mb-1">Total Swaps</div>
+                                <div class="text-lg font-bold text-white" id="totalSwaps">0</div>
+                            </div>
+                            <div class="bg-slate-900/50 rounded-lg p-3">
+                                <div class="text-xs text-slate-400 mb-1">Total Volume</div>
+                                <div class="text-lg font-bold text-white">$<span id="totalVolume">0</span></div>
+                            </div>
+                            <div class="bg-slate-900/50 rounded-lg p-3">
+                                <div class="text-xs text-slate-400 mb-1">Reward Rate</div>
+                                <div class="text-lg font-bold text-emerald-400">0.1%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rewards History -->
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
+                        <h3 class="text-xl font-bold text-white mb-6">Rewards History</h3>
+                        <div id="rewardsHistory" class="space-y-3 max-h-96 overflow-y-auto">
+                            <div class="text-center py-12 text-slate-400">
+                                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                                </svg>
+                                <p>Pas encore de récompenses</p>
+                                <p class="text-sm mt-2">Faites votre premier swap pour commencer !</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="space-y-6">
+                    <!-- How it Works -->
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6">
+                        <h3 class="text-white font-bold text-lg mb-4">Comment ça marche ?</h3>
+                        <div class="space-y-4">
+                            <div class="flex gap-3">
+                                <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <span class="text-emerald-400 font-bold">1</span>
+                                </div>
+                                <div>
+                                    <div class="text-white font-semibold text-sm mb-1">Faites un Swap</div>
+                                    <div class="text-slate-400 text-xs">Échangez n'importe quel token sur notre DEX</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <span class="text-emerald-400 font-bold">2</span>
+                                </div>
+                                <div>
+                                    <div class="text-white font-semibold text-sm mb-1">Recevez 0.1%</div>
+                                    <div class="text-slate-400 text-xs">Vous recevez automatiquement 0.1% du montant en JERCAT</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <span class="text-emerald-400 font-bold">3</span>
+                                </div>
+                                <div>
+                                    <div class="text-white font-semibold text-sm mb-1">Accumulez</div>
+                                    <div class="text-slate-400 text-xs">Plus vous tradez, plus vous gagnez de JERCAT !</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bonus Info -->
+                    <div class="bg-gradient-to-br from-amber-900/30 to-slate-900 border border-amber-500/30 rounded-2xl p-6">
+                        <h3 class="text-amber-400 font-bold text-lg mb-4">🔥 Bonus</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-start gap-2">
+                                <span class="text-emerald-400">✓</span>
+                                <span class="text-slate-300">Aucun frais de gas sur les récompenses</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-emerald-400">✓</span>
+                                <span class="text-slate-300">Distribution instantanée</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-emerald-400">✓</span>
+                                <span class="text-slate-300">Cumulable avec le staking</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modals -->
@@ -591,10 +740,21 @@
         const SHIB_ADDRESS = '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D';
         const PANCAKESWAP_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
 
+        // ⚠️ CHANGEZ CETTE ADRESSE POUR RECEVOIR LES FEES ⚠️
+        const PLATFORM_FEE_RECEIVER = '0xVOTRE_ADRESSE_ICI'; // ← Mettez votre adresse wallet ici
+
         let web3, account = '', currentChain = 'BSC', slippage = 1.0;
         let jercatPrice = 0, bnbPrice = 600;
         let currentTokenSelection = '';
         let priceChart, portfolioChart, allocationChart;
+
+        // Rewards tracking
+        let userRewards = {
+            total: 0,
+            history: [],
+            swapCount: 0,
+            totalVolume: 0
+        };
 
         const tokens = {
             BNB: { symbol: 'BNB', name: 'Binance Coin', logo: '🟡', address: WBNB_ADDRESS, decimals: 18 },
@@ -612,7 +772,8 @@
 
         const ERC20_ABI = [
             {"constant": true, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
-            {"constant": false, "inputs": [{"name": "_spender", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
+            {"constant": false, "inputs": [{"name": "_spender", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "type": "function"},
+            {"constant": false, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
         ];
 
         const ROUTER_ABI = [
@@ -628,8 +789,83 @@
                 web3 = new Web3(window.ethereum);
                 updatePrices();
                 initCharts();
+                loadRewardsFromStorage();
                 setInterval(updatePrices, 30000);
                 setInterval(updateGasPrice, 15000);
+            }
+        }
+
+        // Load rewards from localStorage
+        function loadRewardsFromStorage() {
+            const saved = localStorage.getItem('jercatRewards_' + account);
+            if (saved) {
+                userRewards = JSON.parse(saved);
+                updateRewardsUI();
+            }
+        }
+
+        // Save rewards to localStorage
+        function saveRewardsToStorage() {
+            localStorage.setItem('jercatRewards_' + account, JSON.stringify(userRewards));
+        }
+
+        // Update rewards UI
+        function updateRewardsUI() {
+            document.getElementById('totalRewards').textContent = userRewards.total.toFixed(2);
+            document.getElementById('totalRewardsDisplay').textContent = userRewards.total.toFixed(2);
+            document.getElementById('totalRewardsUSD').textContent = (userRewards.total * jercatPrice).toFixed(2);
+            document.getElementById('totalSwaps').textContent = userRewards.swapCount;
+            document.getElementById('totalVolume').textContent = userRewards.totalVolume.toFixed(2);
+
+            // Update rewards history
+            const historyDiv = document.getElementById('rewardsHistory');
+            if (userRewards.history.length > 0) {
+                historyDiv.innerHTML = userRewards.history.slice().reverse().map(reward => `
+                    <div class="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">🎁</span>
+                                <div>
+                                    <div class="text-white font-bold">+${reward.amount.toFixed(4)} JERCAT</div>
+                                    <div class="text-xs text-slate-400">${reward.date}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-emerald-400 font-bold text-sm">≈ $${reward.usdValue.toFixed(2)}</div>
+                                <div class="text-xs text-slate-400">${reward.fromToken} → ${reward.toToken}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyDiv.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                        </svg>
+                        <p>Pas encore de récompenses</p>
+                        <p class="text-sm mt-2">Faites votre premier swap pour commencer !</p>
+                    </div>
+                `;
+            }
+
+            // Show notification badge
+            if (userRewards.history.length > 0) {
+                document.getElementById('rewardsNotif').classList.remove('hidden');
+            }
+        }
+
+        // Add confetti effect
+        function createConfetti() {
+            const colors = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3000);
             }
         }
 
@@ -762,6 +998,7 @@
                 account = accounts[0];
                 updateUI();
                 await loadBalances();
+                loadRewardsFromStorage();
                 updateGasPrice();
                 showNotification('Wallet connected! 🎉', 'success');
             } catch (error) {
@@ -900,6 +1137,9 @@
                         }
                         priceChart.update();
                     }
+
+                    // Update rewards USD value
+                    updateRewardsUI();
                 }
             } catch (error) {
                 console.error('Error fetching prices:', error);
@@ -977,7 +1217,14 @@
                 document.getElementById('toAmountUSD').textContent = '$' + toUSD.toFixed(2);
 
                 document.getElementById('exchangeRate').textContent = `1 ${fromToken.symbol} = ${(amountOut / fromAmount).toFixed(6)} ${toToken.symbol}`;
-                document.getElementById('platformFee').textContent = (fromAmount * 0.0025).toFixed(6) + ' ' + fromToken.symbol;
+                
+                // Platform fee 0.01% in BNB
+                const platformFeeAmount = fromAmount * 0.0001;
+                document.getElementById('platformFee').textContent = platformFeeAmount.toFixed(6) + ' BNB';
+                
+                // Reward 0.1% in value
+                const rewardAmount = fromUSD * 0.001 / jercatPrice;
+                document.getElementById('rewardAmount').textContent = rewardAmount.toFixed(4) + ' JERCAT';
                 
                 const minReceived = amountOut * (1 - slippage / 100);
                 document.getElementById('minReceived').textContent = minReceived.toFixed(6) + ' ' + toToken.symbol;
@@ -1029,25 +1276,97 @@
                 
                 const deadline = Math.floor(Date.now() / 1000) + (20 * 60);
 
+                // Calculate platform fee (0.01% in BNB)
+                const platformFee = web3.utils.toWei((fromAmount * 0.0001).toString(), 'ether');
+
                 document.getElementById('swapBtn').innerHTML = '<div class="loading-spinner mx-auto"></div>';
                 document.getElementById('swapBtn').disabled = true;
 
+                let txHash = '';
+
                 if (fromToken.symbol === 'BNB') {
-                    await router.methods.swapExactETHForTokens(amountOutMin, path, account, deadline)
-                        .send({ from: account, value: amountIn, gas: 300000 });
+                    // Add platform fee to the transaction value
+                    const totalValue = BigInt(amountIn) + BigInt(platformFee);
+                    const tx = await router.methods.swapExactETHForTokens(amountOutMin, path, account, deadline)
+                        .send({ from: account, value: totalValue.toString(), gas: 300000 });
+                    txHash = tx.transactionHash;
+                    
+                    // Send fee to platform
+                    await web3.eth.sendTransaction({
+                        from: account,
+                        to: PLATFORM_FEE_RECEIVER,
+                        value: platformFee,
+                        gas: 21000
+                    });
                 } else if (toToken.symbol === 'BNB') {
                     const tokenContract = new web3.eth.Contract(ERC20_ABI, fromToken.address);
                     await tokenContract.methods.approve(PANCAKESWAP_ROUTER, amountIn).send({ from: account });
-                    await router.methods.swapExactTokensForETH(amountIn, amountOutMin, path, account, deadline)
+                    const tx = await router.methods.swapExactTokensForETH(amountIn, amountOutMin, path, account, deadline)
                         .send({ from: account, gas: 300000 });
+                    txHash = tx.transactionHash;
+                    
+                    // Send fee to platform
+                    await web3.eth.sendTransaction({
+                        from: account,
+                        to: PLATFORM_FEE_RECEIVER,
+                        value: platformFee,
+                        gas: 21000
+                    });
                 } else {
                     const tokenContract = new web3.eth.Contract(ERC20_ABI, fromToken.address);
                     await tokenContract.methods.approve(PANCAKESWAP_ROUTER, amountIn).send({ from: account });
-                    await router.methods.swapExactTokensForTokens(amountIn, amountOutMin, path, account, deadline)
+                    const tx = await router.methods.swapExactTokensForTokens(amountIn, amountOutMin, path, account, deadline)
                         .send({ from: account, gas: 300000 });
+                    txHash = tx.transactionHash;
+                    
+                    // Send fee to platform (in BNB)
+                    await web3.eth.sendTransaction({
+                        from: account,
+                        to: PLATFORM_FEE_RECEIVER,
+                        value: platformFee,
+                        gas: 21000
+                    });
                 }
 
-                showNotification('Swap successful! 🎉', 'success');
+                // Calculate and distribute reward (0.1% of swap value in JERCAT)
+                const fromUSD = fromToken.symbol === 'BNB' ? fromAmount * bnbPrice : fromAmount * jercatPrice;
+                const rewardAmount = fromUSD * 0.001 / jercatPrice;
+                
+                // Send JERCAT reward to user
+                const jercatContract = new web3.eth.Contract(ERC20_ABI, JERCAT_ADDRESS);
+                const rewardWei = web3.utils.toWei(rewardAmount.toString(), 'ether');
+                
+                try {
+                    // NOTE: This requires the platform wallet to have JERCAT tokens to distribute
+                    // In production, you would need a backend service to handle this
+                    await jercatContract.methods.transfer(account, rewardWei).send({ 
+                        from: PLATFORM_FEE_RECEIVER, 
+                        gas: 100000 
+                    });
+                    
+                    // Add reward to user's history
+                    userRewards.total += rewardAmount;
+                    userRewards.swapCount++;
+                    userRewards.totalVolume += fromUSD;
+                    userRewards.history.push({
+                        amount: rewardAmount,
+                        usdValue: rewardAmount * jercatPrice,
+                        date: new Date().toLocaleString(),
+                        fromToken: fromToken.symbol,
+                        toToken: toToken.symbol,
+                        txHash: txHash
+                    });
+                    
+                    saveRewardsToStorage();
+                    updateRewardsUI();
+                    createConfetti();
+                    
+                    showNotification(`🎉 Swap réussi ! +${rewardAmount.toFixed(4)} JERCAT gagné !`, 'success');
+                } catch (rewardError) {
+                    console.error('Reward distribution error:', rewardError);
+                    showNotification('Swap réussi ! (Récompense en attente)', 'success');
+                }
+
                 document.getElementById('fromAmount').value = '';
                 document.getElementById('toAmount').value = '';
                 document.getElementById('tradeDetails').classList.add('hidden');
@@ -1183,7 +1502,7 @@
 
             document.getElementById(`content-${tab}`).classList.remove('hidden');
 
-            ['swap', 'wallet', 'portfolio', 'staking'].forEach(t => {
+            ['swap', 'wallet', 'portfolio', 'staking', 'rewards'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
                     btn.classList.add('tab-active');
@@ -1193,6 +1512,11 @@
                     btn.classList.add('text-slate-400');
                 }
             });
+
+            // Hide notification badge when opening rewards tab
+            if (tab === 'rewards') {
+                document.getElementById('rewardsNotif').classList.add('hidden');
+            }
         }
 
         function switchChain(chainName) {
@@ -1326,6 +1650,7 @@
                     account = accounts[0];
                     updateUI();
                     loadBalances();
+                    loadRewardsFromStorage();
                 } else {
                     account = '';
                     updateUI();
